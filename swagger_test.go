@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/emicklei/go-restful"
-	"github.com/emicklei/go-restful/swagger/test_package"
+	"github.com/emicklei/go-restful-swagger12/test_package"
 )
 
 func TestInfoStruct_Issue231(t *testing.T) {
