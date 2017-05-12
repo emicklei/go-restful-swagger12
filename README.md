@@ -75,6 +75,75 @@ This example will generate a JSON like this
 - `SwaggerDoc()` is using a **NON-Pointer** receiver (e.g. func (Address) and not func (*Address))
 - The returned map should use as key the name of the field as defined in the JSON parameter (e.g. `"postcode"` and not `"PostCode"`)
 
+Custom marshaled types
+--
+
+Types that implement the [json.Marshaler](https://golang.org/pkg/encoding/json/#Marshaler) interface are able to output JSON that does not match their go struct.
+Fields with types that implement custom marshaling are treated as `"string"` types by default.
+That type can be overridden in two ways:
+###### By using struct tags
+- Use the tag "type" to annotate the field with a type
+
+###### By using the MarshalJSONSchema method
+Implement a `MarshalJSONSchema() reflect.Type` method in addition to the json.Marshaler interface to indicate the schema of the produced JSON.
+Complex types can be returned and are recursively included in the generated specification.
+
+Here is an example of a type that implements custom marshaling and provides a schema for its custom JSON.
+
+```go
+type Complex struct {
+	Children ComplexCustomMarshaler `json:"children,omitempty"`
+}
+type ComplexCustomMarshaler struct {
+	Items map[string]int
+}
+type ComplexChild struct {
+	Name  string `json:"name,omitempty"`
+	Value int `json:"value,omitempty"`
+}
+
+func (c ComplexCustomMarshaler) MarshalJSON() ([]byte, error) {
+	output := []ComplexChild{}
+	for k, v := range c.Items {
+		output = append(output, ComplexChild{Name: k, Value: v})
+	}
+	return json.Marshal(output)
+}
+func (_ ComplexCustomMarshaler) MarshalJSONSchema() reflect.Type {
+	return reflect.TypeOf([]ComplexChild{})
+}
+```
+
+This example will generate JSON like this:
+
+```json
+{
+  "Complex": {
+    "id": "Complex",
+    "properties": {
+      "children": {
+        "type": "array",
+        "items": {
+          "$ref": "ComplexChild"
+        }
+      }
+    }
+  },
+  "ComplexChild": {
+    "id": "ComplexChild",
+    "properties": {
+      "name": {
+        "type": "string"
+      },
+      "value": {
+        "type": "integer",
+        "format": "int32"
+      }
+    }
+  }
+}
+```
+
 Notes
 --
 - The Nickname of an Operation is automatically set by finding the name of the function. You can override it using RouteBuilder.Operation(..) 
