@@ -65,6 +65,16 @@ func InstallSwaggerService(aSwaggerConfig Config) {
 // RegisterSwaggerService add the WebService that provides the API documentation of all services
 // conform the Swagger documentation specifcation. (https://github.com/wordnik/swagger-core/wiki).
 func RegisterSwaggerService(config Config, wsContainer *restful.Container) {
+	// For auth protecting your api listing route use RegisterListing
+	unprotected := func(req *restful.Request, resp *restful.Response, chain *restful.FilterChain) {
+		chain.ProcessFilter(req, resp)
+	}
+	RegisterListing(config, wsContainer, unprotected)
+	RegisterUI(config, wsContainer)
+}
+
+// RegisterListing registers the listing and allows a filter function to be used for authentication purposes
+func RegisterListing(config Config, wsContainer *restful.Container, filter restful.FilterFunction) {
 	sws := newSwaggerService(config)
 	ws := new(restful.WebService)
 	ws.Path(config.ApiPath)
@@ -72,17 +82,20 @@ func RegisterSwaggerService(config Config, wsContainer *restful.Container) {
 	if config.DisableCORS {
 		ws.Filter(enableCORS)
 	}
-	ws.Route(ws.GET("/").To(sws.getListing))
-	ws.Route(ws.GET("/{a}").To(sws.getDeclarations))
-	ws.Route(ws.GET("/{a}/{b}").To(sws.getDeclarations))
-	ws.Route(ws.GET("/{a}/{b}/{c}").To(sws.getDeclarations))
-	ws.Route(ws.GET("/{a}/{b}/{c}/{d}").To(sws.getDeclarations))
-	ws.Route(ws.GET("/{a}/{b}/{c}/{d}/{e}").To(sws.getDeclarations))
-	ws.Route(ws.GET("/{a}/{b}/{c}/{d}/{e}/{f}").To(sws.getDeclarations))
-	ws.Route(ws.GET("/{a}/{b}/{c}/{d}/{e}/{f}/{g}").To(sws.getDeclarations))
+	ws.Route(ws.GET("/").Filter(filter).To(sws.getListing))
+	ws.Route(ws.GET("/{a}").Filter(filter).To(sws.getDeclarations))
+	ws.Route(ws.GET("/{a}/{b}").Filter(filter).To(sws.getDeclarations))
+	ws.Route(ws.GET("/{a}/{b}/{c}").Filter(filter).To(sws.getDeclarations))
+	ws.Route(ws.GET("/{a}/{b}/{c}/{d}").Filter(filter).To(sws.getDeclarations))
+	ws.Route(ws.GET("/{a}/{b}/{c}/{d}/{e}").Filter(filter).To(sws.getDeclarations))
+	ws.Route(ws.GET("/{a}/{b}/{c}/{d}/{e}/{f}").Filter(filter).To(sws.getDeclarations))
+	ws.Route(ws.GET("/{a}/{b}/{c}/{d}/{e}/{f}/{g}").Filter(filter).To(sws.getDeclarations))
 	LogInfo("[restful/swagger] listing is available at %v%v", config.WebServicesUrl, config.ApiPath)
 	wsContainer.Add(ws)
+}
 
+// RegisterUI serves static assets for the UI
+func RegisterUI(config Config, wsContainer *restful.Container) {
 	// Check paths for UI serving
 	if config.StaticHandler == nil && config.SwaggerFilePath != "" && config.SwaggerPath != "" {
 		swaggerPathSlash := config.SwaggerPath
